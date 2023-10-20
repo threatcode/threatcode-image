@@ -1,0 +1,10 @@
+#!/bin/bash
+
+. /usr/sbin/tc-common
+
+if docker ps | grep -q "tc-wazuh"; then
+	docker exec -it tc-wazuh /var/ossec/bin/ossec-logtest
+else
+	echo "OSSEC is not running."
+	echo "Start it with -->  sudo tc-ossec-start"
+fi

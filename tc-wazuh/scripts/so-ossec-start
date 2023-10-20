@@ -1,0 +1,16 @@
+#!/bin/bash
+
+. /usr/sbin/tc-common
+. /etc/nsm/threatcode.conf
+
+if docker ps | grep -q "tc-wazuh"; then
+        docker exec -it tc-wazuh /var/ossec/bin/ossec-control start
+else
+	docker run --hostname=${HOSTNAME}-docker --name=tc-wazuh -it --detach \
+                        --publish 0.0.0.0:55000:55000 \
+                        --publish 0.0.0.0:1514:1514/udp \
+                        --volume /opt/tc/wazuh/:/var/ossec/data/ \
+                        wlambert/tc-wazuh
+	# Connect container to tc-elastic-net Docker network
+	docker network connect --alias wazuh tc-elastic-net tc-wazuh
+fi

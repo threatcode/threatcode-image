@@ -1,0 +1,168 @@
+# Config file for use with the following logs on Threat Code
+# - Windows logs shipped with Winlogbeat
+# - Osquery logs shipped with the SO/osquery integrated configs 
+title: SO configs
+logsources:
+  osquery:
+    product: osquery
+    index: "*:tc-osquery-*"
+    conditions:
+      event.module: 'osquery'
+  windows:
+    product: windows
+    index: "*:tc-*"
+  idh-opencanary:
+    product: opencanary
+    conditions:
+      event.module: 'opencanary'
+  suricata-alerts:
+    product: suricata
+    service: alert
+    conditions:
+      event.module: 'suricata'
+      event.dataset: 'alert'
+  zeek-rdp:
+    product: zeek
+    service: rdp
+    conditions:
+      event.dataset: 'rdp'
+  strelka-logs:
+    product: strelka
+    conditions:
+      event.module: 'strelka'
+  windows-application:
+    product: windows
+    service: application
+    conditions:
+      log_name: Application
+  windows-security:
+    product: windows
+    service: security
+    conditions:
+      log_name: Security
+  windows-sysmon:
+    product: windows
+    service: sysmon
+    conditions:
+      log_name: 'Microsoft-Windows-Sysmon/Operational'
+  windows-powershell:
+    product: windows
+    service: powershell
+    conditions:
+      log_name: 'Microsoft-Windows-Powershell/Operational'
+  windows-defender:
+    product: windows
+    service: defender
+    conditions:
+      log_name: 'Microsoft-Windows-Windows Defender/Operational'
+  windows-dns-server:
+    product: windows
+    service: dns-server
+    conditions:
+      log_name: 'DNS Server'
+  windows-driver-framework:
+    product: windows
+    service: driver-framework
+    conditions:
+      source: 'Microsoft-Windows-DriverFrameworks-UserMode/Operational'
+  windows-msexchange-management:
+    product: windows
+    service: msexchange-management
+    conditions:
+      log_name: 'MSExchange Management'
+defaultindex: "*:tc-*"
+fieldmappings:
+    EventID: event.code
+    log_name: winlog.channel
+    AccessMask: winlog.event_data.AccessMask
+    AccountName: winlog.event_data.AccountName
+    AllowedToDelegateTo: winlog.event_data.AllowedToDelegateTo
+    AttributeLDAPDisplayName: winlog.event_data.AttributeLDAPDisplayName
+    AuditPolicyChanges: winlog.event_data.AuditPolicyChanges
+    AuthenticationPackageName: winlog.event_data.AuthenticationPackageName
+    CallingProcessName: winlog.event_data.CallingProcessName
+    CallTrace: winlog.event_data.CallTrace
+    CommandLine: process.command_line
+    Company: process.pe.company
+    ComputerName: winlog.event_data.ComputerName
+    CurrentDirectory: process.working_directory
+    Description: process.pe.description
+    DestinationHostname: destination.hostname
+    DestinationIp: destination.ip
+    DestinationIsIpv6: winlog.event_data.DestinationIsIpv6
+    DestinationPort: destination.port
+    Details: winlog.event_data.Details
+    EngineVersion: winlog.event_data.EngineVersion
+    EventType: winlog.event_data.EventType
+    FailureCode: winlog.event_data.FailureCode
+    FileName: winlog.event_data.FileName
+    FileVersion: process.pe.file_version
+    GrantedAccess: winlog.event_data.GrantedAccess
+    GroupName: winlog.event_data.GroupName
+    Hashes: winlog.event_data.Hashes
+    HiveName: winlog.event_data.HiveName
+    HostVersion: winlog.event_data.HostVersion
+    Image: process.executable
+    ImageLoaded: winlog.event_data.ImageLoaded
+    ImagePath: winlog.event_data.ImagePath
+    Imphash: winlog.event_data.Imphash
+    Initiated: winlog.event_data.Initiated
+    LogonProcessName: winlog.event_data.LogonProcessName
+    LogonType: winlog.event_data.LogonType
+    logtype: event.code
+    NewProcessName: winlog.event_data.NewProcessName
+    ObjectClass: winlog.event_data.ObjectClass
+    ObjectName: winlog.event_data.ObjectName
+    ObjectType: winlog.event_data.ObjectType
+    ObjectValueName: winlog.event_data.ObjectValueName
+    OriginalFileName: process.pe.original_file_name
+    ParentCommandLine: process.parent.command_line
+    ParentImage: process.parent.executable
+    Path: winlog.event_data.Path
+    PipeName: winlog.event_data.PipeName
+    ProcessName: winlog.event_data.ProcessName
+    ProcessId: process.pid
+    Properties: winlog.event_data.Properties
+    ServiceFileName: winlog.event_data.ServiceFileName
+    ServiceName: winlog.event_data.ServiceName
+    ShareName: winlog.event_data.ShareName
+    Signature: winlog.event_data.Signature
+    Source: winlog.event_data.Source
+    SourceImage: winlog.event_data.SourceImage
+    SourceIP: source.ip
+    SourcePort: source.port
+    SourceHostname: source.hostname
+    StartModule: winlog.event_data.StartModule
+    Status: winlog.event_data.Status
+    SubjectUserName: user.name
+    TargetFilename: file.target
+    TargetImage: winlog.event_data.TargetImage
+    TargetObject: winlog.event_data.TargetObject
+    TicketEncryptionType: winlog.event_data.TicketEncryptionType
+    TicketOptions: winlog.event_data.TicketOptions
+    User: user.name
+    WorkstationName: winlog.event_data.WorkstationName
+    Product: process.pe.product
+    GroupSid: winlog.event_data.GroupSid    
+    RelativeTargetName: winlog.event_data.RelativeTargetName
+    qid: result.columns.qid
+    hostname: result.hostname
+    counter: result.counter
+    column_name: columns.name
+    query_name: result.name
+    username: user.name
+    uid: user.uid
+    Protocol: network.transport
+    sid: rule.uuid
+    SubjectUserSid: winlog.event_data.SubjectUserSid
+    query: query
+    answer: answers
+    src_ip: source.ip
+    src_port: source.port
+    dst_ip: destination.ip
+    dst_port: destination.port
+    cs-method: http.method
+    c-uri: http.uri
+    c-useragent: http.useragent
+    cs-version: http.version
+    IpAddress: winlog.event_data.IpAddress

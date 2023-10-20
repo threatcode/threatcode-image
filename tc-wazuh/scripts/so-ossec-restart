@@ -1,0 +1,6 @@
+#!/bin/bash
+
+. /usr/sbin/tc-common
+
+/usr/sbin/tc-ossec-stop &&
+/usr/sbin/tc-ossec-start
