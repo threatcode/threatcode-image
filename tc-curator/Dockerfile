@@ -1,5 +1,3 @@
-
-
 FROM alpine:3
 
 LABEL maintainer "Threat Code" 
