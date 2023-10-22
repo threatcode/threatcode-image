@@ -1,5 +1,3 @@
-
-
 FROM ghcr.io/threatcode/rockylinux:8 as builder 
 RUN dnf -y install dnf-plugins-core && dnf config-manager --set-enabled powertools && dnf update -y && \
     dnf -y install epel-release bash libpcap iproute wget cmake swig && \
