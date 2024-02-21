@@ -18,7 +18,7 @@ RUN sed -i '/<base href="\/">/d' ./dist/index.html
 
 ###################################
 
-FROM nginx:1.22.1-alpine
+FROM nginx:1.25.1-alpine
 
 LABEL maintainer "Threat Code"
 LABEL description="Threat Code Core Functions Docker"
