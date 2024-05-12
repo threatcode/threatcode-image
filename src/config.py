@@ -1,7 +1,10 @@
+import copy
 import os
 import pprint
+
 import yaml
 from yaml import Loader
+
 
 def load_ci_env(debug):
     print("> [Info] Gathering env variables")
@@ -15,84 +18,94 @@ def load_ci_env(debug):
         "docker_reg_password": os.environ.get("DOCKER_PASSWORD", ""),
     }
     if debug:
-        print_debug_info(build_info)
+        pp = pprint.PrettyPrinter(indent=1)
+        print(">> CI environment configuration: ")
+        pp.pprint(build_info)
+        print("\n")
     return build_info
 
-def print_debug_info(build_info):
-    pp = pprint.PrettyPrinter(indent=1)
-    print(">> CI environment configuration: ")
-    pp.pprint(build_info)
-    print("\n")
 
 def load_base_config():
-    with open("base_config.yml") as base_config_file:
+    with open(f"base_config.yml") as base_config_file:
         base_config = base_config_file.read()
     return yaml.load(base_config, Loader=Loader)
 
+
 def load_image_config(image_type, version):
-    base_config_path = f"base_config.yml"
-    image_config_path = f"{image_type}/config.yml"
-    with open(base_config_path) as base_config_file:
-        base_config = base_config_file.read()
-    with open(image_config_path) as image_config_file:
-        image_config = image_config_file.read()
-    full_config = f"{base_config}\n{image_config}"
+    config_path = "config.yml"
+    base_config_path = f"base_{config_path}"
+    image_config_path = f"{image_type}/{config_path}"
+    full_config = ""
+    with open(base_config_path) as base_config:
+        full_config = base_config.read()
+    with open(image_config_path) as image_config:
+        full_config = f"{full_config}\n{image_config.read()}"
     config = yaml.load(full_config, Loader=Loader)
 
-    validate_config(image_type, config, version)
+    # Raise exceptions if a key is not found
+    if "versions" not in config:
+        raise KeyError("No configuration is set for this image - Image: " + image_type)
+    if version not in config["versions"]:
+        existing_versions = [v for v, _ in config["versions"].items()]
+        raise KeyError(
+            f"This version is not defined for {image_type} image - Defined versions: {', '.join(existing_versions)}"
+        )
 
     image_config = config["versions"][version] or dict()
-    process_build_args(image_config)
+
+    # Make sure all args are used as strings for Docker API
+    if "build_args" in image_config:
+        for arg, value in image_config["build_args"].items():
+            image_config["build_args"][arg] = str(value)
 
     image_config["docker_hub_namespace"] = config["docker_hub_namespace"]
 
     return image_config
 
-def validate_config(image_type, config, version):
-    if "versions" not in config:
-        raise KeyError(f"No configuration is set for this image - Image: {image_type}")
-    if version not in config["versions"]:
-        existing_versions = ", ".join(config["versions"].keys())
-        raise KeyError(
-            f"This version is not defined for {image_type} image - Defined versions: {existing_versions}"
-        )
-
-def process_build_args(image_config):
-    if "build_args" in image_config:
-        for arg, value in image_config["build_args"].items():
-            image_config["build_args"][arg] = str(value)
 
 def get_image_fullname(image_name, version, image_conf, env_conf):
     image_repo_name_base = f"{image_conf['docker_hub_namespace']}/ci-{image_name}"
-    image_tag = get_image_tag(version, env_conf)
+    image_tag = f'{version}-' if version != "1" else  ""
+
+    if env_conf["tag"]:
+        image_tag += env_conf["tag"]
+    elif env_conf["event_type"] == "schedule":
+        image_tag += "nightly"
+    elif env_conf["branch"] in ["master"]:
+        image_tag += "latest"
+    else:
+        image_tag += "latest"
+
     return f"{image_repo_name_base}:{image_tag}"
 
-def get_image_tag(version, env_conf):
-    if env_conf["tag"]:
-        return f'{version}-{env_conf["tag"]}'
-    elif env_conf["event_type"] == "schedule":
-        return f'{version}-nightly'
-    elif env_conf["branch"] == "master":
-        return f'{version}-latest'
-    else:
-        return f'{version}-latest'
 
 def get_image_tags(image_name, version, image_conf, env_conf):
     image_repo_name_base = f"{image_conf['docker_hub_namespace']}/ci-{image_name}"
     local_repo_name_base = f"localhost:5000/ci-{image_name}"
-    version_tag = get_image_tag(version, env_conf)
+    version_tag = f'{version}-' if version != "1" else ""
+
+    if env_conf["tag"]:
+        version_tag += env_conf["tag"]
+    elif env_conf["event_type"] == "schedule":
+        version_tag += "nightly"
+    elif env_conf["branch"] in ["master"]:
+        version_tag += "latest"
+    else:
+        version_tag += "latest"
 
     tags = {
         "fullname": f"{image_repo_name_base}:{version_tag}",
         "localname": f"{local_repo_name_base}:{version_tag}",
         "platforms": {},
     }
-    for platform in image_conf.get("platforms", []):
+    for platform in image_conf["platforms"]:
         _os, _arch, _variant = parse_platform(platform)
         tags["platforms"][platform] = f"{image_repo_name_base}-{_arch}:{version_tag}"
+
     return tags
 
 def parse_platform(platform):
     parts = platform.split("/")
     parts.extend([None])
-    return parts[:3]
+
+    return parts[0:3]
