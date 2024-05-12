@@ -48,11 +48,14 @@ def build(image, version, debug):
             or (env_conf["event_type"] != "pull_request" and env_conf["branch"] == "master")
             or env_conf["event_type"] == "schedule"
         ):
-            # Login to registry and push
-            docker_tools.login_to_registry(
-                env_conf, username="${{ github.actor }}", password="${{ secrets.GITHUB_TOKEN }}")
+            # Login to GitHub Container Registry (ghcr.io) using GitHub token
+            docker.login(
+                registry="ghcr.io",
+                username="${{ github.actor }}",
+                password="${{ secrets.GITHUB_TOKEN }}"
+            )
 
-            # Build, tag and push docker image to remote registry (Docker hub)
+            # Build, tag and push docker image to remote registry (GitHub Container Registry)
             docker_tools.build_image(
                 image_conf, image_tags["fullname"], dockerfile_directory, dockerfile_path, debug)
 
