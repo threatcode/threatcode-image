@@ -107,4 +107,4 @@ def push_image(image_fullname):
         print("Push successful")
     except DockerException as docker_exception:
         print("> [Error] Push failed - " + str(docker_exception))
-        exit(1))
+        exit(1)
