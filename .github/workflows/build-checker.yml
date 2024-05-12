@@ -1,0 +1,29 @@
+name: Build Checker
+
+on:
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for commit statuses
+        id: status
+        uses: WyriHaximus/github-action-wait-for-status@v1.8.0
+        with:
+          ignoreActions: check
+          checkInterval: 60
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Succeed
+        if: steps.status.outputs.status == 'success'
+        run: exit 0
+      - name: Fail
+        if: steps.status.outputs.status == 'failure'
+        run: exit 1
