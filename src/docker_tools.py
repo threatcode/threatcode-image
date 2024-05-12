@@ -3,7 +3,7 @@ import pprint
 
 from python_on_whales import docker
 from python_on_whales.exceptions import DockerException
-
+import src.docker_tools as docker_tools
 
 def build_image(image_conf, image_tag, dockerfile_directory, dockerfile_path, debug):
     print("> [Info] Building: " + image_tag)
@@ -44,67 +44,49 @@ def build_image(image_conf, image_tag, dockerfile_directory, dockerfile_path, de
 
     print("Build successful")
 
+# Modify other functions as needed
 
-def run_image(image_name, image_conf, debug):
-    volume = []
+def build(image, version, debug):
+    # Get env variables
+    env_conf = config.load_ci_env(debug)
 
-    print("> [Info] Testing " + image_name)
-
+    # Get image configuration
     try:
-        if "test_config" in image_conf:
-            test_config = image_conf["test_config"]
-            if "volume" in test_config:
-                # Split path:directory string and build volume dict
-                splitted_volume = test_config["volume"].split(":")
-                volume = [(f"{os.getcwd()}/{splitted_volume[0]}",
-                           splitted_volume[1],
-                           "ro")]
-            for cmd in test_config["cmd"]:
-                cmd_list = cmd.split(" ")
-                if debug:
-                    print(">> Running test: " + str(cmd_list))
-                for platform in image_conf["platforms"]:
-                    container_output = docker.container.run(
-                        image=image_name,
-                        platform=platform,
-                        command=cmd_list,
-                        volumes=volume
-                    )
-                    if debug:
-                        print(container_output)
-        print("Tests successful")
-    except DockerException as e:
-        print("> [Error] Command test failed - " + str(e))
-        exit(1)
-    finally:
-        docker.container.prune()
-
-
-def tag_image(image, tag):
-    docker.image.tag(image, tag)
-
-
-def start_local_registry():
-    return docker.run("registry:2", detach=True, publish=[(5000, 5000)], restart='always', name='registry')
-
-
-def login_to_registry(env_conf):
-    print("> [Info] Login to registry")
-    try:
-        docker.login(
-            username=env_conf["docker_reg_username"], password=env_conf["docker_reg_password"]
-        )
-        print("Login successful")
-    except DockerException as docker_exception:
-        print("> [Error] Login failed - " + str(docker_exception))
+        image_conf = config.load_image_config(image, version)
+    except KeyError as e:
+        print(e)
         exit(1)
 
+    # Build dockerfile directory and path
+    dockerfile_directory = image
+    prefixed_dockerfile_path = f"{version}/Dockerfile"
+    # Set the subdirectory in path because we want dockerfile_directory (aka the build context) to be the parent image directory
+    dockerfile_path = prefixed_dockerfile_path if os.path.exists(
+        f"{dockerfile_directory}/{prefixed_dockerfile_path}") else "Dockerfile"
 
-def push_image(image_fullname):
-    print("> [Info] Pushing " + image_fullname)
-    try:
-        docker.image.push(image_fullname)
-        print("Push successful")
-    except DockerException as docker_exception:
-        print("> [Error] Push failed - " + str(docker_exception))
-        exit(1)
+    # Build image tags list (base tag + archs)
+    image_tags = config.get_image_tags(image, version, image_conf, env_conf)
+
+    with docker_tools.start_local_registry() as local_registry:
+        # Build, tag and push docker image to local registry
+        docker_tools.build_image(
+            image_conf, image_tags["localname"], dockerfile_directory, dockerfile_path, debug)
+        
+        # Run defined test command
+        docker_tools.run_image(image_tags["localname"], image_conf, debug)
+
+        # Push to registry in case of:
+        # - tag
+        # - push to master
+        # - nightly build
+        if (
+            env_conf["tag"] != ""
+            or (env_conf["event_type"] != "pull_request" and env_conf["branch"] == "master")
+            or env_conf["event_type"] == "schedule"
+        ):
+            # Login to registry and push
+            docker_tools.login_to_registry("${{ github.actor }}", "${{ secrets.GITHUB_TOKEN }}")
+
+            # Build, tag and push docker image to remote registry (Docker hub)
+            docker_tools.build_image(
+                image_conf, image_tags["fullname"], dockerfile_directory, dockerfile_path, debug)
