@@ -1,5 +1,4 @@
-ARG ALPINE_TAG=latest
-FROM alpine:${ALPINE_TAG}
+FROM alpine:latest
 
 RUN apk -U upgrade \
     && apk add --no-cache \
