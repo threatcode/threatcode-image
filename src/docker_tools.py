@@ -1,9 +1,19 @@
 import os
 import pprint
-
+import subprocess
 from python_on_whales import docker
 from python_on_whales.exceptions import DockerException
 
+def login_to_ghcr(username, token):
+    print("> [Info] Login to GitHub Container Registry (ghcr.io)")
+    try:
+        # Run the docker login command with subprocess
+        login_command = f"docker login ghcr.io -u {username} -p {token}"
+        subprocess.run(login_command, shell=True, check=True)
+        print("Login successful")
+    except subprocess.CalledProcessError as error:
+        print("> [Error] Login failed - " + str(error))
+        exit(1)
 
 def build_image(image_conf, image_tag, dockerfile_directory, dockerfile_path, debug):
     print("> [Info] Building: " + image_tag)
@@ -32,8 +42,8 @@ def build_image(image_conf, image_tag, dockerfile_directory, dockerfile_path, de
             tags=image_tag,
             cache=False,
             push=True,
-            build_args=image_conf["build_args"] if "build_args" in image_conf else {
-            }, platforms=image_conf["platforms"]
+            build_args=image_conf["build_args"] if "build_args" in image_conf else {},
+            platforms=image_conf["platforms"]
         )  
 
     except DockerException as docker_exception:
@@ -43,7 +53,6 @@ def build_image(image_conf, image_tag, dockerfile_directory, dockerfile_path, de
         builder.remove()
 
     print("Build successful")
-
 
 def run_image(image_name, image_conf, debug):
     volume = []
@@ -79,26 +88,11 @@ def run_image(image_name, image_conf, debug):
     finally:
         docker.container.prune()
 
-
 def tag_image(image, tag):
     docker.image.tag(image, tag)
 
-
 def start_local_registry():
     return docker.run("registry:2", detach=True, publish=[(5000, 5000)], restart='always', name='registry')
-
-
-def login_to_registry(env_conf):
-    print("> [Info] Login to registry")
-    try:
-        docker.login(
-            username=env_conf["docker_reg_username"], password=env_conf["docker_reg_password"]
-        )
-        print("Login successful")
-    except DockerException as docker_exception:
-        print("> [Error] Login failed - " + str(docker_exception))
-        exit(1)
-
 
 def push_image(image_fullname):
     print("> [Info] Pushing " + image_fullname)
@@ -107,4 +101,4 @@ def push_image(image_fullname):
         print("Push successful")
     except DockerException as docker_exception:
         print("> [Error] Push failed - " + str(docker_exception))
-        exit(1)
+        exit(1))
