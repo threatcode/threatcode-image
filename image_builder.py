@@ -1,4 +1,5 @@
-import os
+from os.path import exists
+
 import click
 
 import src.config as config
@@ -10,7 +11,9 @@ from python_on_whales import docker
 @click.option("--image", "-i", default="nmap", help="image to build")
 @click.option("--version", "-v", default="1", help="image version")
 @click.option("--debug", "-d", is_flag=True, help="debug")
+
 def build(image, version, debug):
+
     # Get env variables
     env_conf = config.load_ci_env(debug)
 
@@ -25,16 +28,17 @@ def build(image, version, debug):
     dockerfile_directory = image
     prefixed_dockerfile_path = f"{version}/Dockerfile"
     # Set the subdirectory in path because we want dockerfile_directory (aka the build context) to be the parent image directory
-    dockerfile_path = prefixed_dockerfile_path if os.path.exists(
+    dockerfile_path = prefixed_dockerfile_path if exists(
         f"{dockerfile_directory}/{prefixed_dockerfile_path}") else "Dockerfile"
 
     # Build image tags list (base tag + archs)
     image_tags = config.get_image_tags(image, version, image_conf, env_conf)
 
     with docker_tools.start_local_registry() as local_registry:
+
         # Build, tag and push docker image to local registry
-        docker_tools.build_image(
-            image_conf, image_tags["localname"], dockerfile_directory, dockerfile_path, debug)
+        docker_tools.build_image(image_conf, image_tags["localname"], dockerfile_directory, dockerfile_path, debug)
+        
 
         # Run defined test command
         docker_tools.run_image(image_tags["localname"], image_conf, debug)
@@ -48,16 +52,11 @@ def build(image, version, debug):
             or (env_conf["event_type"] != "pull_request" and env_conf["branch"] == "master")
             or env_conf["event_type"] == "schedule"
         ):
-            # Login to GitHub Container Registry (ghcr.io) using GitHub token
-            docker.login(
-                registry="ghcr.io",
-                username="${{ github.actor }}",
-                password="${{ secrets.GITHUB_TOKEN }}"
-            )
+            # Login to registry and push
+            docker_tools.login_to_registry(env_conf)
 
-            # Build, tag and push docker image to remote registry (GitHub Container Registry)
-            docker_tools.build_image(
-                image_conf, image_tags["fullname"], dockerfile_directory, dockerfile_path, debug)
+            # Build, tag and push docker image to remote registry (Docker hub)
+            docker_tools.build_image(image_conf, image_tags["fullname"], dockerfile_directory, dockerfile_path, debug)
 
 
 @click.group()
