@@ -1,12 +1,9 @@
 import json
-from glob import glob
-from os.path import exists
-
-import yaml
+import os
 from git import Repo
+import yaml
 
-matrix = {"include": []}
-excluded_files = [  # Changes to those files shouldn't trigger a build
+excluded_files = [
     '.gitignore',
     'CHANGELOG.md',
     'README.md',
@@ -17,55 +14,52 @@ excluded_files = [  # Changes to those files shouldn't trigger a build
 def get_diff_files_list():
     repo = Repo('.')
     modified_files = repo.commit("origin/master").diff(repo.commit())
-    changedFiles = [item.a_path for item in modified_files]
-    return changedFiles
+    changed_files = [item.a_path for item in modified_files]
+    return changed_files
 
 
-def filter_excluded_files(changedFiles):
-    filteredFiles = [
-        file for file in changedFiles if file not in excluded_files
-    ]
-    return filteredFiles
+def filter_excluded_files(changed_files):
+    return [file for file in changed_files if file not in excluded_files]
 
 
-def get_paths(changedFiles, unfilteredFiles):
-    paths = []
-    if changedFiles == []:
-        if unfilteredFiles == []:
-            # Master or tag job with no diff, builds everything
-            return glob("*/")
-        else:
-            # All files were previously excluded, builds nothing
-            return []
-    for file in changedFiles:
+def get_paths(changed_files):
+    paths = set()
+    if not changed_files:
+        return glob("*/") if not unfiltered_files else []
+
+    for file in changed_files:
         if "/" not in file or "/src" in file or ".github" in file:
             return glob("*/")
         else:
             split_path = file.split("/")
-            paths.append(split_path[0])
-    return set(paths)
+            paths.add(split_path[0])
+    return paths
 
 
 def generate_matrix(paths):
+    matrix = {"include": []}
     for image_folder in paths:
-        with open("base_config.yml", 'r') as base_config:
-            if exists("{}/config.yml".format(image_folder)):
-                with open("{}/config.yml".format(image_folder), 'r') as config:
+        config_path = os.path.join(image_folder, "config.yml")
+        if os.path.exists(config_path):
+            with open("base_config.yml", 'r') as base_config:
+                with open(config_path, 'r') as config:
                     full_config = base_config.read() + config.read()
-
                     image_config = yaml.safe_load(full_config)
 
-                    for version in image_config["versions"]:
-                        matrix["include"].append(
-                            {
-                                "image": image_folder.replace("/", ""),
-                                "version": str(version)
-                            }
-                        )
+                    for version in image_config.get("versions", []):
+                        matrix["include"].append({
+                            "image": image_folder.replace("/", ""),
+                            "version": str(version)
+                        })
     print(json.dumps(matrix))
 
 
-changedFiles = get_diff_files_list()
-filteredFiles = filter_excluded_files(changedFiles)
-paths = get_paths(filteredFiles, changedFiles)
-generate_matrix(paths)
+def main():
+    changed_files = get_diff_files_list()
+    filtered_files = filter_excluded_files(changed_files)
+    paths = get_paths(filtered_files)
+    generate_matrix(paths)
+
+
+if __name__ == "__main__":
+    main()
